@@ -10,15 +10,23 @@ import (
 
 func (s *Service) LogProgress(
 	ctx context.Context,
+	actor contracts.Actor,
 	planID string,
 	request contracts.ProgressRequest,
 ) (domain.ProgressEntry, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.ProgressEntry{}, err
 	}
+	if err := requireRole(actor, contracts.RolePreparator, "记录制备进度"); err != nil {
+		return domain.ProgressEntry{}, err
+	}
+	recorder, err := recordedName(actor, request.RecordedBy)
+	if err != nil {
+		return domain.ProgressEntry{}, err
+	}
 
 	var created domain.ProgressEntry
-	err := s.repo.Mutate(func(m *repository.Mutation) error {
+	err = s.repo.Mutate(func(m *repository.Mutation) error {
 		plan, ok := m.GetPlan(planID)
 		if !ok {
 			return notFoundPlan(planID)
@@ -35,7 +43,7 @@ func (s *Service) LogProgress(
 			request.Stage,
 			request.Percent,
 			request.Note,
-			request.RecordedBy,
+			recorder,
 			s.now(),
 		)
 		if err != nil {

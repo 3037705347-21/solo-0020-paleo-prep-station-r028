@@ -7,11 +7,15 @@ import (
 )
 
 func (api *API) createPlan(w http.ResponseWriter, r *http.Request) {
+	actor, ok := actorFromRequest(w, r)
+	if !ok {
+		return
+	}
 	var request contracts.CreatePlanRequest
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	value, err := api.service.CreatePlan(r.Context(), r.PathValue("id"), request)
+	value, err := api.service.CreatePlan(r.Context(), actor, r.PathValue("id"), request)
 	if err != nil {
 		writeError(w, err)
 		return
@@ -39,11 +43,15 @@ func (api *API) getPlan(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) approvePlan(w http.ResponseWriter, r *http.Request) {
+	actor, ok := actorFromRequest(w, r)
+	if !ok {
+		return
+	}
 	var request contracts.ApprovalRequest
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	value, err := api.service.ApprovePlan(r.Context(), r.PathValue("id"), request)
+	value, err := api.service.ApprovePlan(r.Context(), actor, r.PathValue("id"), request)
 	if err != nil {
 		writeError(w, err)
 		return

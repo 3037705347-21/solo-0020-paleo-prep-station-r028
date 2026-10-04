@@ -24,6 +24,7 @@ type Specimen struct {
 	MatrixKind    string         `json:"matrix_kind"`
 	JacketNotes   string         `json:"jacket_notes"`
 	Status        SpecimenStatus `json:"status"`
+	RegisteredBy  string         `json:"registered_by"`
 	Version       int            `json:"version"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
@@ -36,6 +37,7 @@ func NewSpecimen(
 	taxonHint string,
 	matrixKind string,
 	jacketNotes string,
+	registeredBy string,
 	now time.Time,
 ) (Specimen, error) {
 	if id == "" {
@@ -61,6 +63,10 @@ func NewSpecimen(
 	if err != nil {
 		return Specimen{}, err
 	}
+	registrar, err := requiredText("登记人", registeredBy, 80)
+	if err != nil {
+		return Specimen{}, err
+	}
 	return Specimen{
 		ID:            id,
 		CatalogNumber: catalog,
@@ -69,6 +75,7 @@ func NewSpecimen(
 		MatrixKind:    matrix,
 		JacketNotes:   notes,
 		Status:        SpecimenRegistered,
+		RegisteredBy:  registrar,
 		Version:       1,
 		CreatedAt:     now.UTC(),
 		UpdatedAt:     now.UTC(),
@@ -127,6 +134,19 @@ func (s *Specimen) MarkAvailable(now time.Time) error {
 		return contracts.Conflict("specimen_not_releasable", "只有已稳定标本可以办理放行")
 	}
 	s.Status = SpecimenAvailable
+	s.Version++
+	s.UpdatedAt = now.UTC()
+	return nil
+}
+
+// RevokeAvailability compensates a release: the specimen returns to the
+// stabilized state and can never re-enter preparation or be released again,
+// because its permanent release record is preserved.
+func (s *Specimen) RevokeAvailability(now time.Time) error {
+	if s.Status != SpecimenAvailable {
+		return contracts.Conflict("specimen_not_available", "只有已放行标本可以撤销放行")
+	}
+	s.Status = SpecimenStabilized
 	s.Version++
 	s.UpdatedAt = now.UTC()
 	return nil

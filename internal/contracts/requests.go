@@ -31,3 +31,7 @@ type ReleaseRequest struct {
 	Recipient  string `json:"recipient"`
 	ApprovedBy string `json:"approved_by"`
 }
+
+type RevokeReleaseRequest struct {
+	Reason string `json:"reason"`
+}

@@ -7,12 +7,16 @@ import (
 )
 
 type ReleaseRecord struct {
-	ID         string    `json:"id"`
-	SpecimenID string    `json:"specimen_id"`
-	Purpose    string    `json:"purpose"`
-	Recipient  string    `json:"recipient"`
-	ApprovedBy string    `json:"approved_by"`
-	CreatedAt  time.Time `json:"created_at"`
+	ID           string     `json:"id"`
+	SpecimenID   string     `json:"specimen_id"`
+	Purpose      string     `json:"purpose"`
+	Recipient    string     `json:"recipient"`
+	ApprovedBy   string     `json:"approved_by"`
+	Revoked      bool       `json:"revoked"`
+	RevokedBy    string     `json:"revoked_by,omitempty"`
+	RevokedAt    *time.Time `json:"revoked_at,omitempty"`
+	RevokeReason string     `json:"revoke_reason,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
 }
 
 func NewReleaseRecord(
@@ -49,4 +53,26 @@ func NewReleaseRecord(
 		ApprovedBy: approver,
 		CreatedAt:  now.UTC(),
 	}, nil
+}
+
+// Revoke marks the current release record as revoked while preserving the
+// original record. A revoked record can never be revoked again.
+func (r *ReleaseRecord) Revoke(revokedBy string, reason string, now time.Time) error {
+	if r.Revoked {
+		return contracts.Conflict("release_already_revoked", "放行记录已经撤销，不能重复撤销")
+	}
+	revoker, err := requiredText("撤销人", revokedBy, 80)
+	if err != nil {
+		return err
+	}
+	reasonValue, err := optionalText("撤销原因", reason, 200)
+	if err != nil {
+		return err
+	}
+	stamp := now.UTC()
+	r.Revoked = true
+	r.RevokedBy = revoker
+	r.RevokedAt = &stamp
+	r.RevokeReason = reasonValue
+	return nil
 }

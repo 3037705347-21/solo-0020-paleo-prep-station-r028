@@ -34,6 +34,13 @@ func NewProgressEntry(
 	if plan.Status != PlanApproved && plan.Status != PlanActive {
 		return ProgressEntry{}, contracts.Conflict("plan_not_recordable", "当前方案状态不能追加制备进度")
 	}
+	recorder, err := requiredText("记录人", recordedBy, 80)
+	if err != nil {
+		return ProgressEntry{}, err
+	}
+	if plan.ApprovedBy != "" && recorder == plan.ApprovedBy {
+		return ProgressEntry{}, contracts.Forbidden("approver_cannot_record", "方案审批人不能记录该方案的制备进度")
+	}
 	if err := validatePercent(percent); err != nil {
 		return ProgressEntry{}, err
 	}
@@ -42,10 +49,6 @@ func NewProgressEntry(
 		return ProgressEntry{}, err
 	}
 	noteValue, err := optionalText("进度说明", note, 500)
-	if err != nil {
-		return ProgressEntry{}, err
-	}
-	recorder, err := requiredText("记录人", recordedBy, 80)
 	if err != nil {
 		return ProgressEntry{}, err
 	}

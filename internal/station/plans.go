@@ -10,10 +10,14 @@ import (
 
 func (s *Service) CreatePlan(
 	ctx context.Context,
+	actor contracts.Actor,
 	specimenID string,
 	request contracts.CreatePlanRequest,
 ) (domain.PrepPlan, error) {
 	if err := ctx.Err(); err != nil {
+		return domain.PrepPlan{}, err
+	}
+	if err := requireRole(actor, contracts.RolePrepLead, "创建修复方案"); err != nil {
 		return domain.PrepPlan{}, err
 	}
 
@@ -33,6 +37,7 @@ func (s *Service) CreatePlan(
 			request.Method,
 			request.Adhesive,
 			request.TargetExposure,
+			actor.Name,
 			s.now(),
 		)
 		if err != nil {
@@ -51,15 +56,23 @@ func (s *Service) CreatePlan(
 
 func (s *Service) ApprovePlan(
 	ctx context.Context,
+	actor contracts.Actor,
 	planID string,
 	request contracts.ApprovalRequest,
 ) (domain.PrepPlan, error) {
 	if err := ctx.Err(); err != nil {
 		return domain.PrepPlan{}, err
 	}
+	if err := requireRole(actor, contracts.RolePrepLead, "审批修复方案"); err != nil {
+		return domain.PrepPlan{}, err
+	}
+	approver, err := recordedName(actor, request.ApprovedBy)
+	if err != nil {
+		return domain.PrepPlan{}, err
+	}
 
 	var approved domain.PrepPlan
-	err := s.repo.Mutate(func(m *repository.Mutation) error {
+	err = s.repo.Mutate(func(m *repository.Mutation) error {
 		plan, ok := m.GetPlan(planID)
 		if !ok {
 			return notFoundPlan(planID)
@@ -68,7 +81,7 @@ func (s *Service) ApprovePlan(
 		if !ok {
 			return notFoundSpecimen(plan.SpecimenID)
 		}
-		if err := plan.Approve(request.ApprovedBy, s.now()); err != nil {
+		if err := plan.Approve(approver, s.now()); err != nil {
 			return err
 		}
 		if err := specimen.MarkPreparing(s.now()); err != nil {

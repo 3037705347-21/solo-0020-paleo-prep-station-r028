@@ -24,6 +24,7 @@ type PrepPlan struct {
 	Adhesive       string     `json:"adhesive"`
 	TargetExposure int        `json:"target_exposure"`
 	Status         PlanStatus `json:"status"`
+	CreatedBy      string     `json:"created_by"`
 	ApprovedBy     string     `json:"approved_by,omitempty"`
 	ApprovedAt     *time.Time `json:"approved_at,omitempty"`
 	Version        int        `json:"version"`
@@ -38,6 +39,7 @@ func NewPrepPlan(
 	method string,
 	adhesive string,
 	targetExposure int,
+	createdBy string,
 	now time.Time,
 ) (PrepPlan, error) {
 	if id == "" {
@@ -58,6 +60,10 @@ func NewPrepPlan(
 	if err != nil {
 		return PrepPlan{}, err
 	}
+	creator, err := requiredText("方案创建人", createdBy, 80)
+	if err != nil {
+		return PrepPlan{}, err
+	}
 	if err := validatePercent(targetExposure); err != nil {
 		return PrepPlan{}, contracts.Invalid("invalid_target_exposure", "目标暴露比例必须位于 0 到 100 之间")
 	}
@@ -72,6 +78,7 @@ func NewPrepPlan(
 		Adhesive:       adhesiveValue,
 		TargetExposure: targetExposure,
 		Status:         PlanDraft,
+		CreatedBy:      creator,
 		Version:        1,
 		CreatedAt:      now.UTC(),
 		UpdatedAt:      now.UTC(),
@@ -93,6 +100,9 @@ func (p *PrepPlan) Approve(approvedBy string, now time.Time) error {
 	approver, err := requiredText("审批人", approvedBy, 80)
 	if err != nil {
 		return err
+	}
+	if approver == p.CreatedBy {
+		return contracts.Forbidden("self_approval_forbidden", "方案创建人不能审批自己创建的方案")
 	}
 	stamp := now.UTC()
 	p.Status = PlanApproved

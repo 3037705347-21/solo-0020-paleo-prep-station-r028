@@ -49,6 +49,8 @@ func statusForKind(kind contracts.ErrorKind) int {
 		return http.StatusNotFound
 	case contracts.KindConflict:
 		return http.StatusConflict
+	case contracts.KindForbidden:
+		return http.StatusForbidden
 	default:
 		return http.StatusInternalServerError
 	}

@@ -20,11 +20,15 @@ func (api *API) listSpecimens(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) registerSpecimen(w http.ResponseWriter, r *http.Request) {
+	actor, ok := actorFromRequest(w, r)
+	if !ok {
+		return
+	}
 	var request contracts.RegisterSpecimenRequest
 	if !decodeJSON(w, r, &request) {
 		return
 	}
-	value, err := api.service.RegisterSpecimen(r.Context(), request)
+	value, err := api.service.RegisterSpecimen(r.Context(), actor, request)
 	if err != nil {
 		writeError(w, err)
 		return

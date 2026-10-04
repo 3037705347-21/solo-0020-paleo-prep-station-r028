@@ -10,9 +10,13 @@ import (
 
 func (s *Service) RegisterSpecimen(
 	ctx context.Context,
+	actor contracts.Actor,
 	request contracts.RegisterSpecimenRequest,
 ) (domain.Specimen, error) {
 	if err := ctx.Err(); err != nil {
+		return domain.Specimen{}, err
+	}
+	if err := requireRole(actor, contracts.RoleRegistrar, "登记标本"); err != nil {
 		return domain.Specimen{}, err
 	}
 
@@ -25,6 +29,7 @@ func (s *Service) RegisterSpecimen(
 			request.TaxonHint,
 			request.MatrixKind,
 			request.JacketNotes,
+			actor.Name,
 			s.now(),
 		)
 		if err != nil {
