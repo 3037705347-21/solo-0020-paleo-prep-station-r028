@@ -19,6 +19,10 @@ func (s *Service) LogProgress(
 
 	var created domain.ProgressEntry
 	err := s.repo.Mutate(func(m *repository.Mutation) error {
+		recorder, err := authorize(m, "记录人", request.RecordedBy, domain.RolePreparator)
+		if err != nil {
+			return err
+		}
 		plan, ok := m.GetPlan(planID)
 		if !ok {
 			return notFoundPlan(planID)
@@ -35,7 +39,7 @@ func (s *Service) LogProgress(
 			request.Stage,
 			request.Percent,
 			request.Note,
-			request.RecordedBy,
+			recorder,
 			s.now(),
 		)
 		if err != nil {

@@ -24,8 +24,11 @@ type PrepPlan struct {
 	Adhesive       string     `json:"adhesive"`
 	TargetExposure int        `json:"target_exposure"`
 	Status         PlanStatus `json:"status"`
+	CreatedBy      string     `json:"created_by"`
 	ApprovedBy     string     `json:"approved_by,omitempty"`
 	ApprovedAt     *time.Time `json:"approved_at,omitempty"`
+	CancelledBy    string     `json:"cancelled_by,omitempty"`
+	CancelledAt    *time.Time `json:"cancelled_at,omitempty"`
 	Version        int        `json:"version"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
@@ -38,6 +41,7 @@ func NewPrepPlan(
 	method string,
 	adhesive string,
 	targetExposure int,
+	createdBy string,
 	now time.Time,
 ) (PrepPlan, error) {
 	if id == "" {
@@ -64,6 +68,10 @@ func NewPrepPlan(
 	if targetExposure == 0 {
 		return PrepPlan{}, contracts.Invalid("invalid_target_exposure", "目标暴露比例必须大于零")
 	}
+	creator, err := requiredText("方案创建人", createdBy, 80)
+	if err != nil {
+		return PrepPlan{}, err
+	}
 	return PrepPlan{
 		ID:             id,
 		SpecimenID:     specimen.ID,
@@ -72,6 +80,7 @@ func NewPrepPlan(
 		Adhesive:       adhesiveValue,
 		TargetExposure: targetExposure,
 		Status:         PlanDraft,
+		CreatedBy:      creator,
 		Version:        1,
 		CreatedAt:      now.UTC(),
 		UpdatedAt:      now.UTC(),
@@ -129,12 +138,19 @@ func (p *PrepPlan) Complete(now time.Time) error {
 	return nil
 }
 
-func (p *PrepPlan) Cancel(now time.Time) error {
+func (p *PrepPlan) Cancel(cancelledBy string, now time.Time) error {
 	if p.Status != PlanDraft {
 		return contracts.Conflict("plan_not_cancellable", "只有草稿方案可以取消")
 	}
+	canceller, err := requiredText("撤销人", cancelledBy, 80)
+	if err != nil {
+		return err
+	}
+	stamp := now.UTC()
 	p.Status = PlanCancelled
+	p.CancelledBy = canceller
+	p.CancelledAt = &stamp
 	p.Version++
-	p.UpdatedAt = now.UTC()
+	p.UpdatedAt = stamp
 	return nil
 }

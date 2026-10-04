@@ -23,6 +23,7 @@ type Specimen struct {
 	TaxonHint     string         `json:"taxon_hint"`
 	MatrixKind    string         `json:"matrix_kind"`
 	JacketNotes   string         `json:"jacket_notes"`
+	RegisteredBy  string         `json:"registered_by"`
 	Status        SpecimenStatus `json:"status"`
 	Version       int            `json:"version"`
 	CreatedAt     time.Time      `json:"created_at"`
@@ -36,6 +37,7 @@ func NewSpecimen(
 	taxonHint string,
 	matrixKind string,
 	jacketNotes string,
+	registeredBy string,
 	now time.Time,
 ) (Specimen, error) {
 	if id == "" {
@@ -61,6 +63,10 @@ func NewSpecimen(
 	if err != nil {
 		return Specimen{}, err
 	}
+	registrar, err := requiredText("登记人", registeredBy, 80)
+	if err != nil {
+		return Specimen{}, err
+	}
 	return Specimen{
 		ID:            id,
 		CatalogNumber: catalog,
@@ -68,6 +74,7 @@ func NewSpecimen(
 		TaxonHint:     taxon,
 		MatrixKind:    matrix,
 		JacketNotes:   notes,
+		RegisteredBy:  registrar,
 		Status:        SpecimenRegistered,
 		Version:       1,
 		CreatedAt:     now.UTC(),

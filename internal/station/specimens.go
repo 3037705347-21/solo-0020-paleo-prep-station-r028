@@ -18,6 +18,10 @@ func (s *Service) RegisterSpecimen(
 
 	var created domain.Specimen
 	err := s.repo.Mutate(func(m *repository.Mutation) error {
+		registrar, err := authorize(m, "登记人", request.RegisteredBy, domain.RoleRegistrar)
+		if err != nil {
+			return err
+		}
 		value, err := domain.NewSpecimen(
 			s.nextID("specimen"),
 			request.CatalogNumber,
@@ -25,6 +29,7 @@ func (s *Service) RegisterSpecimen(
 			request.TaxonHint,
 			request.MatrixKind,
 			request.JacketNotes,
+			registrar,
 			s.now(),
 		)
 		if err != nil {

@@ -19,9 +19,16 @@ func (s *Service) ReleaseSpecimen(
 
 	var created domain.ReleaseRecord
 	err := s.repo.Mutate(func(m *repository.Mutation) error {
+		approver, err := authorize(m, "批准人", request.ApprovedBy, domain.RoleCurator)
+		if err != nil {
+			return err
+		}
 		specimen, ok := m.GetSpecimen(specimenID)
 		if !ok {
 			return notFoundSpecimen(specimenID)
+		}
+		if recordedProgress(m, specimenID, approver) {
+			return contracts.Forbidden("release_self_approval", "记录过该标本制备进度的人不能批准放行")
 		}
 		if m.HasOpenPlan(specimenID) {
 			return contracts.Conflict("open_plan_blocks_release", "存在未结束方案，不能办理研究放行")
@@ -34,7 +41,7 @@ func (s *Service) ReleaseSpecimen(
 			specimen,
 			request.Purpose,
 			request.Recipient,
-			request.ApprovedBy,
+			approver,
 			s.now(),
 		)
 		if err != nil {
@@ -49,4 +56,18 @@ func (s *Service) ReleaseSpecimen(
 		return nil
 	})
 	return created, err
+}
+
+// recordedProgress reports whether the operator recorded any progress entry on
+// the specimen's plans. The check runs inside the release mutation so the
+// decision and the write observe the same history.
+func recordedProgress(m *repository.Mutation, specimenID string, operator string) bool {
+	for _, plan := range m.ListPlansForSpecimen(specimenID) {
+		for _, entry := range m.ProgressForPlan(plan.ID) {
+			if entry.RecordedBy == operator {
+				return true
+			}
+		}
+	}
+	return false
 }

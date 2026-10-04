@@ -12,6 +12,7 @@ type state struct {
 	plans     map[string]domain.PrepPlan
 	progress  map[string][]domain.ProgressEntry
 	releases  map[string]domain.ReleaseRecord
+	operators map[string]domain.Role
 }
 
 type MemoryRepository struct {
@@ -26,6 +27,7 @@ func NewMemory() *MemoryRepository {
 			plans:     make(map[string]domain.PrepPlan),
 			progress:  make(map[string][]domain.ProgressEntry),
 			releases:  make(map[string]domain.ReleaseRecord),
+			operators: make(map[string]domain.Role),
 		},
 	}
 }
@@ -54,6 +56,7 @@ func cloneMutation(source state) *Mutation {
 		plans:     make(map[string]domain.PrepPlan, len(source.plans)),
 		progress:  make(map[string][]domain.ProgressEntry, len(source.progress)),
 		releases:  make(map[string]domain.ReleaseRecord, len(source.releases)),
+		operators: make(map[string]domain.Role, len(source.operators)),
 	}
 	for key, value := range source.specimens {
 		copied.specimens[key] = value
@@ -66,6 +69,9 @@ func cloneMutation(source state) *Mutation {
 	}
 	for key, value := range source.releases {
 		copied.releases[key] = value
+	}
+	for key, value := range source.operators {
+		copied.operators[key] = value
 	}
 	return &Mutation{state: copied}
 }
@@ -163,4 +169,20 @@ func (m *Mutation) ReleaseForSpecimen(specimenID string) (domain.ReleaseRecord, 
 
 func (m *Mutation) PutRelease(value domain.ReleaseRecord) {
 	m.state.releases[value.ID] = value
+}
+
+// OperatorRole resolves the responsibility currently assigned to an operator
+// name. The lookup shares the repository mutex with business mutations, so a
+// role change and a guarded action always observe each other in a fixed order.
+func (m *Mutation) OperatorRole(name string) (domain.Role, bool) {
+	role, ok := m.state.operators[name]
+	return role, ok
+}
+
+func (m *Mutation) PutOperator(name string, role domain.Role) {
+	m.state.operators[name] = role
+}
+
+func (m *Mutation) DeleteOperator(name string) {
+	delete(m.state.operators, name)
 }

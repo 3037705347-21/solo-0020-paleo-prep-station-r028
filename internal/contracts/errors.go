@@ -6,10 +6,11 @@ import "errors"
 type ErrorKind string
 
 const (
-	KindInvalid  ErrorKind = "invalid"
-	KindNotFound ErrorKind = "not_found"
-	KindConflict ErrorKind = "conflict"
-	KindInternal ErrorKind = "internal"
+	KindInvalid   ErrorKind = "invalid"
+	KindNotFound  ErrorKind = "not_found"
+	KindConflict  ErrorKind = "conflict"
+	KindForbidden ErrorKind = "forbidden"
+	KindInternal  ErrorKind = "internal"
 )
 
 // Error carries a machine-readable code without coupling domain code to HTTP.
@@ -47,6 +48,10 @@ func NotFound(code, message string) error {
 
 func Conflict(code, message string) error {
 	return &Error{Kind: KindConflict, Code: code, Message: message}
+}
+
+func Forbidden(code, message string) error {
+	return &Error{Kind: KindForbidden, Code: code, Message: message}
 }
 
 func Internal(code, message string, cause error) error {

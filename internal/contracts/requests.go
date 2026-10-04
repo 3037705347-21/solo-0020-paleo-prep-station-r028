@@ -6,6 +6,7 @@ type RegisterSpecimenRequest struct {
 	TaxonHint     string `json:"taxon_hint"`
 	MatrixKind    string `json:"matrix_kind"`
 	JacketNotes   string `json:"jacket_notes"`
+	RegisteredBy  string `json:"registered_by"`
 }
 
 type CreatePlanRequest struct {
@@ -13,10 +14,15 @@ type CreatePlanRequest struct {
 	Method         string `json:"method"`
 	Adhesive       string `json:"adhesive"`
 	TargetExposure int    `json:"target_exposure"`
+	CreatedBy      string `json:"created_by"`
 }
 
 type ApprovalRequest struct {
 	ApprovedBy string `json:"approved_by"`
+}
+
+type CancelPlanRequest struct {
+	CancelledBy string `json:"cancelled_by"`
 }
 
 type ProgressRequest struct {

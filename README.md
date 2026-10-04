@@ -9,9 +9,9 @@
 - `cmd/paleo-prep-station`：HTTP 服务入口和监听参数。
 - `cmd/workflowcheck`：通过真实 HTTP 处理器执行四条业务链路的本地验证命令。
 - `internal/httpapi`：路由、请求解码、状态码映射和 JSON 输出。
-- `internal/station`：跨领域对象的编排、事务边界和业务流程。
-- `internal/domain`：标本、方案、进度和放行记录的状态与不变量。
-- `internal/repository`：互斥保护的内存仓储和原子提交。
+- `internal/station`：跨领域对象的编排、职责与归属校验、事务边界和业务流程。
+- `internal/domain`：标本、方案、进度、放行记录和角色职责的状态与不变量。
+- `internal/repository`：互斥保护的内存仓储、职责目录和原子提交。
 - `internal/contracts`：稳定错误模型和公共请求结构。
 
 ## 构建与运行
@@ -23,6 +23,23 @@ go run ./cmd/paleo-prep-station --addr 127.0.0.1:18133
 
 服务启动后，`GET /healthz` 返回就绪状态。
 
+## 职责与操作人
+
+所有写入口都会依据请求中的操作人姓名核对职责目录，未授权请求返回 `403` 且不改变业务状态。内置角色：
+
+- `registrar`（登记员）：`POST /specimens`，身份字段 `registered_by`。
+- `prep_lead`（制备负责人）：`POST /specimens/{id}/plans`（`created_by`）、`POST /plans/{id}/approval` 与 `POST /plans/{id}/cancellation`。方案创建人不能审批自己的方案，只有创建人本人可以撤销草稿方案。
+- `preparator`（制备人员）：`POST /plans/{id}/progress`（`recorded_by`）。
+- `curator`（标本管理员）：`POST /specimens/{id}/release`（`approved_by`）。记录过该标本进度的人不能批准放行。
+
+服务内置一份默认名册（`registrar-song`、`lead-wang`、`lead-zhao`、`preparator-chen`、`keeper-zhou`，分别对应上述角色，其中两位负责人便于演示创建与审批分离）。启动时可用 `--operator name:role` 重复登记或变更职责，例如：
+
+```bash
+go run ./cmd/paleo-prep-station --operator temp-lead:prep_lead
+```
+
+运行中也可以通过 `station.Service.AssignRole` / `RevokeRole` 调整角色；角色读写与业务写入共用同一把仓储互斥锁，角色变更与并发决定按互斥顺序生效。
+
 ## 主要接口
 
 - `GET /specimens` 与 `POST /specimens`
@@ -30,6 +47,7 @@ go run ./cmd/paleo-prep-station --addr 127.0.0.1:18133
 - `POST /specimens/{id}/plans`
 - `GET /plans/{id}`
 - `POST /plans/{id}/approval`
+- `POST /plans/{id}/cancellation`
 - `POST /plans/{id}/progress`
 - `POST /specimens/{id}/release`
 

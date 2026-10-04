@@ -9,9 +9,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"example.com/paleo-prep-station/internal/domain"
 	"example.com/paleo-prep-station/internal/httpapi"
 	"example.com/paleo-prep-station/internal/repository"
 	"example.com/paleo-prep-station/internal/station"
@@ -23,10 +25,32 @@ func main() {
 
 func run() int {
 	addr := flag.String("addr", "127.0.0.1:18133", "local HTTP listen address")
+	var overrides []station.OperatorAssignment
+	flag.Func("operator", "登记或变更操作人职责（格式 name:role，可重复）", func(value string) error {
+		name, roleValue, ok := strings.Cut(value, ":")
+		if !ok {
+			return fmt.Errorf("invalid operator %q, want name:role", value)
+		}
+		role, err := domain.ParseRole(roleValue)
+		if err != nil {
+			return err
+		}
+		overrides = append(overrides, station.OperatorAssignment{
+			Name: strings.TrimSpace(name),
+			Role: role,
+		})
+		return nil
+	})
 	flag.Parse()
 
 	repo := repository.NewMemory()
-	service := station.New(repo)
+	service := station.New(repo, station.WithOperators(station.DefaultOperators()...))
+	for _, override := range overrides {
+		if err := service.AssignRole(context.Background(), override.Name, override.Role); err != nil {
+			fmt.Fprintln(os.Stderr, "operator setup failed:", err)
+			return 1
+		}
+	}
 	server := &http.Server{
 		Addr:              *addr,
 		Handler:           httpapi.NewRouter(service),
